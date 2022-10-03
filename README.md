@@ -22,7 +22,7 @@ new language
 - **Job deployment** – With [AWS Step Functions](https://aws.amazon.com/step-functions/?step-functions.sort-by=item.additionalFields.postDateTime&step-functions.sort-order=desc), you can copy workflows to manage different data
 processing use cases on AWS Glue
 
-In this [blog](https://aws.amazon.com/blogs/big-data/), you will learn how to handle data lake landing jobs deployment in a standardized way—by
+In this [blog](https://docs.aws.amazon.com/blogs/), you will learn how to handle data lake landing jobs deployment in a standardized way—by
 maintaining a JSON file with table names and a few parameters (for example, a workflow catalog). AWS
 Glue workflows are created and updated after manually running the resources deployment flow in Step
 Functions. You can further [customize the AWS Glue blueprints](https://docs.aws.amazon.com/glue/latest/dg/orchestrate-using-blueprints.html) to make your own multi-step data
