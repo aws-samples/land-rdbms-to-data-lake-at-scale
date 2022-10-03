@@ -1,8 +1,6 @@
 # Land relational databases to a data lake at scale using AWS Glue blueprints
 
-This is a companion source code for [Land relational databases to a data lake at scale using AWS Glue blueprints of the solution](https://docs.aws.amazon.com/blogs/) blog.
-
-This Readme includes the introduction, code description, and architecture overview  instructions, and documentation for blog post [Land relational databases to a data lake at scale using AWS Glue blueprints of the solution](https://docs.aws.amazon.com/blogs/).
+Here you can find the companion source code for the AWS blog: [Land relational databases to a data lake at scale using AWS Glue blueprints of the solution](https://docs.aws.amazon.com/blogs/).
 
 **Note**: *The sample code; software libraries; command line tools; proofs of concept; templates; or other related technology (including any of the foregoing that are provided by our personnel) is provided to you as AWS Content under the AWS Customer Agreement, or the relevant written agreement between you and AWS (whichever applies). You should not use this AWS Content in your production accounts, or on production or other critical data. You are responsible for testing, securing, and optimizing the AWS Content, such as sample code, as appropriate for production grade use based on your specific quality control practices and standards. Deploying AWS Content may incur AWS charges for creating or using AWS chargeable resources, such as running Amazon EC2 instances or using Amazon S3 storage.*
 
@@ -31,40 +29,13 @@ Functions. You can further [customize the AWS Glue blueprints](https://docs.aws.
 pipelines to move data to downstream layers and purpose-built analytics services (example use cases
 include [partitioning](https://github.com/awslabs/aws-glue-blueprint-libs/tree/master/samples/partitioning) or [importing to an Amazon DynamoDB table](https://github.com/awslabs/aws-glue-blueprint-libs/tree/master/samples/s3_to_dynamodb).
 
-## Blogpost URL
-
-[Land relational databases to a data lake at scale using AWS Glue blueprints of the solution](https://docs.aws.amazon.com/blogs/)
-
 ## Code Structure
-
-```
-land-rdbms-to-data-lake-at-scale/
-├── artifacts/
-│   └── create_tables_ddl_dml.sql
-│   └── data-lake-landing.json
-│   └── data-lake-landing.zip
-│   └── generate_dummy_config.py
-│   └── BDB1902.jpg
-├── cloudformation-templates/
-│   ├── database_stack.yml
-│   └── main_stack.yml
-├── glue-blueprint/
-│   ├── blueprint.cfg
-│   └── jdbc_to_s3.py
-│   └── layout.py
-├── step-functions-workflow/
-│   ├── definition.json
-├── .gitignore
-├── README.md
-```
-
-- **cloudformation-templates** : This folder contains the cloudformation templates used in the blogpost.
+- **cloudformation-templates** : This folder contains the AWS CloudFormation templates used in the blog.
   - database_stack.yml: This CloudFormation stack works only in AWS Regions where Amazon Aurora Serverless v1 is supported. It is an optional step to create a database with sample data.
-  - main_stack.yml: This CloudFormation stack works in all AWS Regions, and it creates the glue blueprints required resources.
-
-- **glue-blueprint**: This folder contains the glue blueprint code and configuration.
-- **step-functions-workflow**: This folder contains the AWS StepFunctions definition.
-- **artifacts**: This folder contains the artifacts used for the deployments.
+  - main_stack.yml: This CloudFormation stack works in all AWS Regions, and it creates the AWS Glue blueprints and required resources.
+- **glue-blueprint**: This folder contains the AWS Glue blueprint code and configuration.
+- **step-functions-workflow**: This folder contains the AWS Step Functions definition.
+- **artifacts**: This folder contains the artifacts used for the deployment.
 
 ## Architecture Diagram
 
