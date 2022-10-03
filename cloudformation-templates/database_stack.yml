@@ -1,0 +1,77 @@
+Parameters:
+  DBSubnet:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Select 2+ private subnets for the demo database
+  DBSecurityGroup:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: Security Group(s) for the demo database
+  ETLAZ:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Description: Select the Availability Zone for ETL jobs. Must match with the ETLSubnet.
+  ETLSubnet:
+    Type: AWS::EC2::Subnet::Id
+    Description: Select the subnet for the ETL jobs. Must match with ETLAZ. 
+
+Resources:
+  DemoDBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties: 
+      Name: DemoDBSecret
+      Description: Secrets of the demo database
+      GenerateSecretString: 
+          SecretStringTemplate: '{"username": "postgres"}'
+          GenerateStringKey: password
+          PasswordLength: 32
+          ExcludeCharacters: '"@/\'
+  DemoDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: for the demo database
+      DBSubnetGroupName: DemoDB
+      SubnetIds: !Ref DBSubnet
+  DemoDB:
+    Type: AWS::RDS::DBCluster
+    Properties: 
+      BackupRetentionPeriod: 7
+      DatabaseName: hr
+      DBClusterIdentifier: !Join ['-', [demo, !Ref AWS::AccountId]]
+      DBSubnetGroupName: !Ref DemoDBSubnetGroup
+      EnableHttpEndpoint: true
+      Engine: aurora-postgresql
+      EngineMode: serverless
+      EngineVersion: "11.13"
+      MasterUsername: !Join ['', ['{{resolve:secretsmanager:', !Ref DemoDBSecret, ':SecretString:username}}' ]]
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref DemoDBSecret, ':SecretString:password}}' ]]
+      ScalingConfiguration: 
+          AutoPause: true
+          MaxCapacity: 8
+          MinCapacity: 2
+          SecondsUntilAutoPause: 900
+      StorageEncrypted: true
+      VpcSecurityGroupIds: !Ref DBSecurityGroup
+  SecretRDSInstanceAttachment:
+    Type: "AWS::SecretsManager::SecretTargetAttachment"
+    Properties:
+      SecretId: !Ref DemoDBSecret
+      TargetId: !Ref DemoDB
+      TargetType: AWS::RDS::DBCluster
+  GlueNetworkConnection:
+    Type: AWS::Glue::Connection
+    Properties: 
+      CatalogId: !Ref AWS::AccountId
+      ConnectionInput: 
+        ConnectionType: NETWORK
+        Description: Network connection to the data source
+        Name: rds-vpc
+        PhysicalConnectionRequirements: 
+          SecurityGroupIdList: !Ref DBSecurityGroup
+          SubnetId: !Ref ETLSubnet
+          AvailabilityZone: !Ref ETLAZ
+
+Outputs:
+  SecretsArn:
+    Description: ARN of the demo DB secret
+    Value: !Ref DemoDBSecret
+  NetworkConnectionName:
+    Description: AWS Glue connection name
+    Value: !Ref GlueNetworkConnection

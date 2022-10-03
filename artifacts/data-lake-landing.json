@@ -1,0 +1,82 @@
+{
+    "WorkflowList": [
+        {
+            "WorkflowName": "rds_to_s3_public_regions",
+            "GlueExecutionRole": "arn:aws:iam::123456789012:role/AWSGlueServiceRole-data-lake-landing",
+            "NetworkConnectionName": "rds-vpc",
+            "SecretName": "DemoDBSecret",
+            "SourceTable": "public.regions",
+            "DestinationBucketName": "data-lake-raw-layer-123456789012-eu-west-1",
+            "DestinationFileCount": "1",
+            "JobScheduleType": "Cron",
+            "ScheduleCronPattern": "10 21 * * ? *"
+        },
+        {
+            "WorkflowName": "rds_to_s3_public_countries",
+            "GlueExecutionRole": "arn:aws:iam::123456789012:role/AWSGlueServiceRole-data-lake-landing",
+            "NetworkConnectionName": "rds-vpc",
+            "SecretName": "DemoDBSecret",
+            "SourceTable": "public.countries",
+            "DestinationBucketName": "data-lake-raw-layer-123456789012-eu-west-1",
+            "DestinationFileCount": "1",
+            "JobScheduleType": "Cron",
+            "ScheduleCronPattern": "10 21 * * ? *"
+        },
+        {
+            "WorkflowName": "rds_to_s3_public_locations",
+            "GlueExecutionRole": "arn:aws:iam::123456789012:role/AWSGlueServiceRole-data-lake-landing",
+            "NetworkConnectionName": "rds-vpc",
+            "SecretName": "DemoDBSecret",
+            "SourceTable": "public.locations",
+            "DestinationBucketName": "data-lake-raw-layer-123456789012-eu-west-1",
+            "DestinationFileCount": "1",
+            "JobScheduleType": "Cron",
+            "ScheduleCronPattern": "10 21 * * ? *"
+        },
+        {
+            "WorkflowName": "rds_to_s3_public_departments",
+            "GlueExecutionRole": "arn:aws:iam::123456789012:role/AWSGlueServiceRole-data-lake-landing",
+            "NetworkConnectionName": "rds-vpc",
+            "SecretName": "DemoDBSecret",
+            "SourceTable": "public.departments",
+            "DestinationBucketName": "data-lake-raw-layer-123456789012-eu-west-1",
+            "DestinationFileCount": "1",
+            "JobScheduleType": "Cron",
+            "ScheduleCronPattern": "10 21 * * ? *"
+        },
+        {
+            "WorkflowName": "rds_to_s3_public_jobs",
+            "GlueExecutionRole": "arn:aws:iam::123456789012:role/AWSGlueServiceRole-data-lake-landing",
+            "NetworkConnectionName": "rds-vpc",
+            "SecretName": "DemoDBSecret",
+            "SourceTable": "public.jobs",
+            "DestinationBucketName": "data-lake-raw-layer-123456789012-eu-west-1",
+            "DestinationFileCount": "1",
+            "JobScheduleType": "Cron",
+            "ScheduleCronPattern": "10 21 * * ? *"
+        },
+        {
+            "WorkflowName": "rds_to_s3_public_employees",
+            "GlueExecutionRole": "arn:aws:iam::123456789012:role/AWSGlueServiceRole-data-lake-landing",
+            "NetworkConnectionName": "rds-vpc",
+            "SecretName": "DemoDBSecret",
+            "SourceTable": "public.employees",
+            "TransactionTimestampColumnName": "updated_at",
+            "DestinationBucketName": "data-lake-raw-layer-123456789012-eu-west-1",
+            "DestinationFileCount": "2",
+            "JobScheduleType": "Cron",
+            "ScheduleCronPattern": "10 21 * * ? *"
+        },
+        {
+            "WorkflowName": "rds_to_s3_public_job_history",
+            "GlueExecutionRole": "arn:aws:iam::123456789012:role/AWSGlueServiceRole-data-lake-landing",
+            "NetworkConnectionName": "rds-vpc",
+            "SecretName": "DemoDBSecret",
+            "SourceTable": "public.job_history",
+            "DestinationBucketName": "data-lake-raw-layer-123456789012-eu-west-1",
+            "DestinationFileCount": "1",
+            "JobScheduleType": "Cron",
+            "ScheduleCronPattern": "10 21 * * ? *"
+        }
+    ]
+}

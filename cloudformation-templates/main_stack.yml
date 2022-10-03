@@ -1,0 +1,518 @@
+Parameters:
+  S3BucketNamePrefix:
+    Type: String
+    Default: data-lake-raw-layer
+    Description: S3 bucket name prefix of the data lake raw layer and ETL job artifacts (e.g., <S3BucketNamePrefix>-<AccountId>-<Region>)
+  BlueprintName:
+    Type: String
+    Default: data-lake-landing
+    Description: Name of the AWS Glue blueprint
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Join [ '-', [!Ref S3BucketNamePrefix, !Ref AWS::AccountId, !Ref AWS::Region ]]
+      PublicAccessBlockConfiguration: 
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  GlueBlueprintWorkflow:
+    Type: AWS::StepFunctions::StateMachine
+    Properties: 
+      DefinitionString: !Sub |
+        {
+          "StartAt": "CheckBlueprintExist",
+          "States": {
+            "CheckBlueprintExist": {
+              "Type": "Task",
+              "Next": "BlueprintExistChoice",
+              "Parameters": {
+                "Name": "${BlueprintName}"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:glue:getBlueprint",
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "Glue.EntityNotFoundException"
+                  ],
+                  "Next": "CreateBlueprint"
+                }
+              ],
+              "OutputPath": "$.Blueprint"
+            },
+            "BlueprintExistChoice": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Or": [
+                    {
+                      "Variable": "$.Status",
+                      "StringMatches": "ACTIVE"
+                    },
+                    {
+                      "Variable": "$.Status",
+                      "StringMatches": "FAILED"
+                    }
+                  ],
+                  "Next": "DeleteBlueprint"
+                },
+                {
+                  "Or": [
+                    {
+                      "Variable": "$.Status",
+                      "StringMatches": "UPDATING"
+                    },
+                    {
+                      "Variable": "$.Status",
+                      "StringMatches": "CREATING"
+                    }
+                  ],
+                  "Next": "WaitForBlueprintUpdate"
+                }
+              ]
+            },
+            "DeleteBlueprint": {
+              "Type": "Task",
+              "Next": "WaitForBlueprintUpdate",
+              "Parameters": {
+                "Name": "${BlueprintName}"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:glue:deleteBlueprint"
+            },
+            "CreateBlueprint": {
+              "Type": "Task",
+              "Parameters": {
+                "BlueprintLocation": "s3://${S3Bucket}/${BlueprintName}.zip",
+                "Name": "${BlueprintName}"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:glue:createBlueprint",
+              "Next": "WaitForBlueprintCreation"
+            },
+            "WaitForBlueprintCreation": {
+              "Type": "Wait",
+              "Seconds": 10,
+              "Next": "CheckBlueprintCreationStatus"
+            },
+            "CheckBlueprintCreationStatus": {
+              "Type": "Task",
+              "Next": "BlueprintCreationStatusChoice",
+              "Parameters": {
+                "Name": "${BlueprintName}"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:glue:getBlueprint"
+            },
+            "BlueprintCreationStatusChoice": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.Blueprint.Status",
+                  "StringMatches": "ACTIVE",
+                  "Next": "ParseGlueWorkflowsConfig"
+                },
+                {
+                  "Variable": "$.Blueprint.Status",
+                  "StringMatches": "FAILED",
+                  "Next": "Fail"
+                },
+                {
+                  "Or": [
+                    {
+                      "Variable": "$.Blueprint.Status",
+                      "StringMatches": "CREATING"
+                    },
+                    {
+                      "Variable": "$.Blueprint.Status",
+                      "StringMatches": "UPDATING"
+                    }
+                  ],
+                  "Next": "WaitForBlueprintCreation"
+                }
+              ]
+            },
+            "ParseGlueWorkflowsConfig": {
+              "Type": "Task",
+              "Next": "MapForEachGlueWorkflow",
+              "Parameters": {
+                "Bucket": "${S3Bucket}",
+                "Key": "${BlueprintName}.json"
+              },
+              "Resource": "arn:aws:states:::aws-sdk:s3:getObject",
+              "ResultSelector": {
+                "S3Response.$": "States.StringToJson($.Body)"
+              }
+            },
+            "MapForEachGlueWorkflow": {
+              "Type": "Map",
+              "Next": "Success",
+              "Iterator": {
+                "StartAt": "CheckTriggerExist",
+                "States": {
+                  "CheckTriggerExist": {
+                    "Type": "Task",
+                    "Parameters": {
+                      "Name.$": "States.Format('{}_starting_trigger', $.WorkflowName)"
+                    },
+                    "Resource": "arn:aws:states:::aws-sdk:glue:getTrigger",
+                    "Next": "Parallel",
+                    "ResultPath": "$.TriggerOutput",
+                    "Catch": [
+                      {
+                        "ErrorEquals": [
+                          "Glue.EntityNotFoundException"
+                        ],
+                        "Next": "CreateWorkflowFromBlueprint",
+                        "ResultPath": "$.Error"
+                      }
+                    ]
+                  },
+                  "Parallel": {
+                    "Type": "Parallel",
+                    "Next": "DeleteTrigger",
+                    "Branches": [
+                      {
+                        "StartAt": "Wait1s",
+                        "States": {
+                          "Wait1s": {
+                            "Type": "Wait",
+                            "Seconds": 1,
+                            "Next": "CheckWorkflowExist"
+                          },
+                          "CheckWorkflowExist": {
+                            "Type": "Task",
+                            "Parameters": {
+                              "Name.$": "$.TriggerOutput.Trigger.WorkflowName"
+                            },
+                            "Resource": "arn:aws:states:::aws-sdk:glue:getWorkflow",
+                            "Catch": [
+                              {
+                                "ErrorEquals": [
+                                  "Glue.EntityNotFoundException"
+                                ],
+                                "Next": "WorkflowDeleted",
+                                "ResultPath": "$.Error"
+                              }
+                            ],
+                            "Next": "DeleteWorkflow"
+                          },
+                          "DeleteWorkflow": {
+                            "Type": "Task",
+                            "Parameters": {
+                              "Name.$": "$.Workflow.Name"
+                            },
+                            "Resource": "arn:aws:states:::aws-sdk:glue:deleteWorkflow",
+                            "Next": "WaitForWorkflowDelete"
+                          },
+                          "WaitForWorkflowDelete": {
+                            "Type": "Wait",
+                            "Seconds": 5,
+                            "Next": "CheckWorkflowDelete"
+                          },
+                          "CheckWorkflowDelete": {
+                            "Type": "Task",
+                            "Parameters": {
+                              "Name.$": "$.Name"
+                            },
+                            "Resource": "arn:aws:states:::aws-sdk:glue:getWorkflow",
+                            "Catch": [
+                              {
+                                "ErrorEquals": [
+                                  "Glue.EntityNotFoundException"
+                                ],
+                                "Next": "WorkflowDeleted",
+                                "ResultPath": "$.Error"
+                              }
+                            ],
+                            "Next": "WaitForWorkflowDelete"
+                          },
+                          "WorkflowDeleted": {
+                            "Type": "Wait",
+                            "Seconds": 1,
+                            "End": true
+                          }
+                        }
+                      },
+                      {
+                        "StartAt": "Wait2s",
+                        "States": {
+                          "Wait2s": {
+                            "Type": "Wait",
+                            "Seconds": 2,
+                            "Next": "CheckJobExist"
+                          },
+                          "CheckJobExist": {
+                            "Type": "Task",
+                            "Parameters": {
+                              "JobName.$": "$.TriggerOutput.Trigger.Actions[0].JobName"
+                            },
+                            "Resource": "arn:aws:states:::aws-sdk:glue:getJob",
+                            "Catch": [
+                              {
+                                "ErrorEquals": [
+                                  "Glue.EntityNotFoundException"
+                                ],
+                                "Next": "JobDeleted",
+                                "ResultPath": "$.Error"
+                              }
+                            ],
+                            "Next": "DeleteJob"
+                          },
+                          "DeleteJob": {
+                            "Type": "Task",
+                            "Parameters": {
+                              "JobName.$": "$.Job.Name"
+                            },
+                            "Resource": "arn:aws:states:::aws-sdk:glue:deleteJob",
+                            "Next": "WaitForJobDelete"
+                          },
+                          "WaitForJobDelete": {
+                            "Type": "Wait",
+                            "Seconds": 5,
+                            "Next": "CheckJobDelete"
+                          },
+                          "CheckJobDelete": {
+                            "Type": "Task",
+                            "Parameters": {
+                              "JobName.$": "$.JobName"
+                            },
+                            "Resource": "arn:aws:states:::aws-sdk:glue:getJob",
+                            "Catch": [
+                              {
+                                "ErrorEquals": [
+                                  "Glue.EntityNotFoundException"
+                                ],
+                                "Next": "JobDeleted",
+                                "ResultPath": "$.Error"
+                              }
+                            ],
+                            "Next": "WaitForJobDelete"
+                          },
+                          "JobDeleted": {
+                            "Type": "Wait",
+                            "Seconds": 1,
+                            "End": true
+                          }
+                        }
+                      }
+                    ],
+                    "ResultPath": "$.ParallelOutput",
+                    "ResultSelector": "cleared"
+                  },
+                  "DeleteTrigger": {
+                    "Type": "Task",
+                    "Parameters": {
+                      "Name.$": "$.TriggerOutput.Trigger.Name"
+                    },
+                    "Resource": "arn:aws:states:::aws-sdk:glue:deleteTrigger",
+                    "Next": "WaitForTriggerDelete",
+                    "ResultPath": "$.TriggerOutput.Trigger"
+                  },
+                  "WaitForTriggerDelete": {
+                    "Type": "Wait",
+                    "Seconds": 10,
+                    "Next": "CheckTriggerDelete"
+                  },
+                  "CheckTriggerDelete": {
+                    "Type": "Task",
+                    "Parameters": {
+                      "Name.$": "$.TriggerOutput.Trigger.Name"
+                    },
+                    "Resource": "arn:aws:states:::aws-sdk:glue:getTrigger",
+                    "Next": "WaitForTriggerDelete",
+                    "Catch": [
+                      {
+                        "ErrorEquals": [
+                          "Glue.EntityNotFoundException"
+                        ],
+                        "Next": "CreateWorkflowFromBlueprint",
+                        "ResultPath": "$.Error"
+                      }
+                    ],
+                    "ResultPath": "$.TriggerOutput"
+                  },
+                  "CreateWorkflowFromBlueprint": {
+                    "Type": "Task",
+                    "Parameters": {
+                      "BlueprintName": "${BlueprintName}",
+                      "Parameters.$": "$",
+                      "RoleArn.$": "$.GlueExecutionRole"
+                    },
+                    "Resource": "arn:aws:states:::aws-sdk:glue:startBlueprintRun",
+                    "Next": "WaitForWorkflowCreation",
+                    "ResultSelector": {
+                      "BlueprintRun": {
+                        "RunId.$": "$.RunId"
+                      }
+                    }
+                  },
+                  "WaitForWorkflowCreation": {
+                    "Type": "Wait",
+                    "Seconds": 20,
+                    "Next": "CheckBlueprintRunStatus"
+                  },
+                  "CheckBlueprintRunStatus": {
+                    "Type": "Task",
+                    "Parameters": {
+                      "BlueprintName": "${BlueprintName}",
+                      "RunId.$": "$.BlueprintRun.RunId"
+                    },
+                    "Resource": "arn:aws:states:::aws-sdk:glue:getBlueprintRun",
+                    "Next": "BlueprintRunStatusChoice"
+                  },
+                  "BlueprintRunStatusChoice": {
+                    "Type": "Choice",
+                    "Choices": [
+                      {
+                        "Variable": "$.BlueprintRun.State",
+                        "StringMatches": "SUCCEEDED",
+                        "Next": "CreateWorkflowSuccess"
+                      },
+                      {
+                        "Variable": "$.BlueprintRun.State",
+                        "StringMatches": "RUNNING",
+                        "Next": "WaitForWorkflowCreation"
+                      },
+                      {
+                        "Or": [
+                          {
+                            "Variable": "$.BlueprintRun.State",
+                            "StringMatches": "FAILED"
+                          },
+                          {
+                            "Variable": "$.BlueprintRun.State",
+                            "StringMatches": "ROLLING_BACK"
+                          }
+                        ],
+                        "Next": "CreateWorkflowFailed"
+                      }
+                    ]
+                  },
+                  "CreateWorkflowSuccess": {
+                    "Type": "Pass",
+                    "End": true
+                  },
+                  "CreateWorkflowFailed": {
+                    "Type": "Fail"
+                  }
+                }
+              },
+              "ItemsPath": "$.S3Response.WorkflowList",
+              "MaxConcurrency": 5
+            },
+            "Success": {
+              "Type": "Succeed"
+            },
+            "Fail": {
+              "Type": "Fail"
+            },
+            "WaitForBlueprintUpdate": {
+              "Type": "Wait",
+              "Seconds": 10,
+              "Next": "CheckBlueprintExist"
+            }
+          },
+          "Comment": "Orchestrate AWS Glue blueprint registration and run"
+        }
+      RoleArn: !GetAtt StateMachineRole.Arn
+      StateMachineName: !Ref BlueprintName
+  StateMachineRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        RoleName: !Join [ '-', [StepFunctions, !Ref BlueprintName, role]]
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Action:
+                - 'sts:AssumeRole'
+              Effect: Allow
+              Principal:
+                Service:
+                  - states.amazonaws.com
+        ManagedPolicyArns: []
+        Policies:
+          - PolicyName: GluePolicies
+            PolicyDocument:
+              Statement:
+                Action:
+                  - "glue:GetBlueprint"
+                  - "glue:CreateBlueprint"
+                  - "glue:DeleteBlueprint"
+                  - "glue:GetBlueprintRun"
+                  - "glue:StartBlueprintRun"
+                  - "glue:GetTrigger"
+                  - "glue:DeleteTrigger"
+                  - "glue:GetJob"
+                  - "glue:DeleteJob"
+                  - "glue:GetWorkflow"
+                  - "glue:DeleteWorkflow"
+                Resource: "*"
+                Effect: Allow
+          - PolicyName: OtherPolicies
+            PolicyDocument:
+              Statement:
+                Action:
+                  - "s3:GetObject"
+                  - "iam:PassRole"
+                Resource:
+                  - !Join ["/", [!GetAtt S3Bucket.Arn, "*"]]
+                  - !GetAtt GlueExecutionRole.Arn
+                Effect: Allow
+  GlueExecutionRole:
+      Type: 'AWS::IAM::Role'
+      Properties:
+        RoleName: !Join [ '-', [AWSGlueServiceRole, !Ref BlueprintName]]
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            Action:
+              - 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - glue.amazonaws.com
+        ManagedPolicyArns: [arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole]
+        Policies:
+          - PolicyName: S3Policies
+            PolicyDocument:
+              Statement:
+                Action:
+                  - "s3:GetObject"
+                  - "s3:PutObject"
+                  - "s3:ListBucket"
+                Resource:
+                  - !GetAtt S3Bucket.Arn
+                  - !Join ["/", [!GetAtt S3Bucket.Arn, "*"]]
+                Effect: Allow
+          - PolicyName: GluePolicies
+            PolicyDocument:
+              Statement:
+                Action: iam:PassRole
+                Resource: arn:aws:iam::*:role/AWSGlueServiceRole*
+                Condition:
+                  StringLike:
+                    iam:PassedToService: glue.amazonaws.com
+                Effect: Allow
+          - PolicyName: SecretsManagerPolicies
+            PolicyDocument:
+              Statement:
+                Action:
+                  - "secretsmanager:GetSecretValue"
+                Resource:
+                  - "*"
+                Effect: Allow
+
+Outputs:
+  DestinationBucketName:
+    Description: The data lake raw layer S3 bucket
+    Value: !Ref S3Bucket
+  GlueExecutionRole:
+    Description: IAM roles for AWS Glue jobs
+    Value: !GetAtt GlueExecutionRole.Arn
+  StepFunctionsWorkflow:
+    Description: The step-functions-workflow which orchestrates ETL job deployment
+    Value: !Ref GlueBlueprintWorkflow
