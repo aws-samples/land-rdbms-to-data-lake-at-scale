@@ -1,6 +1,6 @@
 # Land relational databases to a data lake at scale using AWS Glue blueprints
 
-Here you can find the companion source code for the AWS blog: [Land relational databases to a data lake at scale using AWS Glue blueprints of the solution](https://docs.aws.amazon.com/blogs/).
+Here you can find the companion source code for the AWS Big Data Blog: [Land data from databases to a data lake at scale using AWS Glue blueprints of the solution](https://aws.amazon.com/blogs/big-data/land-data-from-databases-to-a-data-lake-at-scale-using-aws-glue-blueprints/).
 
 **Note**: *The sample code; software libraries; command line tools; proofs of concept; templates; or other related technology (including any of the foregoing that are provided by our personnel) is provided to you as AWS Content under the AWS Customer Agreement, or the relevant written agreement between you and AWS (whichever applies). You should not use this AWS Content in your production accounts, or on production or other critical data. You are responsible for testing, securing, and optimizing the AWS Content, such as sample code, as appropriate for production grade use based on your specific quality control practices and standards. Deploying AWS Content may incur AWS charges for creating or using AWS chargeable resources, such as running Amazon EC2 instances or using Amazon S3 storage.*
 
@@ -22,7 +22,8 @@ new language
 - **Job deployment** – With [AWS Step Functions](https://aws.amazon.com/step-functions/?step-functions.sort-by=item.additionalFields.postDateTime&step-functions.sort-order=desc), you can copy workflows to manage different data
 processing use cases on AWS Glue
 
-In this [blog](https://docs.aws.amazon.com/blogs/), you will learn how to handle data lake landing jobs deployment in a standardized way—by
+In this [
+](https://docs.aws.amazon.com/blogs/), you will learn how to handle data lake landing jobs deployment in a standardized way—by
 maintaining a JSON file with table names and a few parameters (for example, a workflow catalog). AWS
 Glue workflows are created and updated after manually running the resources deployment flow in Step
 Functions. You can further [customize the AWS Glue blueprints](https://docs.aws.amazon.com/glue/latest/dg/orchestrate-using-blueprints.html) to make your own multi-step data
