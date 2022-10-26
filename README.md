@@ -49,6 +49,10 @@ job logic)
 schedule, and extract and land data to the data lake raw layer
 ![Alt text](artifacts/BDB1902.jpg?raw=true "Title")
 
+### StepFunctions Definiation 
+![Alt text](artifacts/stepfunctions_graph.svg?raw=true "Title")
+ 
+
 The solution workflow contains the following steps:
 
 1. An S3 bucket stores an AWS Glue blueprint (ZIP) and the workflow catalog (JSON file).
