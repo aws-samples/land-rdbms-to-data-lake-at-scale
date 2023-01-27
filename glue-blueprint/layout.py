@@ -88,8 +88,11 @@ def generate_layout(user_params, system_params):
         "--destination_bucket": user_params['DestinationBucketName'],
         "--file_count": user_params['DestinationFileCount'],
         "--delta_col_name": user_params['DeltaColumnName'],
-        "--output_table_partition_column": user_params['S3PartitionColumnName']
     }
+
+    # If partition column is specified, add it to arguments
+    if user_params['S3PartitionColumnName']:
+        arguments["--output_table_partition_column"] = user_params['S3PartitionColumnName']
 
     transform_job = Job(
         Name=f"{workflow_name}_jdbc_to_s3_{source_table_without_dot}",
