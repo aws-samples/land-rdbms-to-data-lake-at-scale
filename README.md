@@ -31,12 +31,12 @@ pipelines to move data to downstream layers and purpose-built analytics services
 include [partitioning](https://github.com/awslabs/aws-glue-blueprint-libs/tree/master/samples/partitioning) or [importing to an Amazon DynamoDB table](https://github.com/awslabs/aws-glue-blueprint-libs/tree/master/samples/s3_to_dynamodb).
 
 ## Code Structure
-- **cloudformation-templates** : This folder contains the AWS CloudFormation templates used in the blog.
-  - database_stack.yml: This CloudFormation stack works only in AWS Regions where Amazon Aurora Serverless v1 is supported. It is an optional step to create a database with sample data.
-  - main_stack.yml: This CloudFormation stack works in all AWS Regions, and it creates the AWS Glue blueprints and required resources.
-- **glue-blueprint**: This folder contains the AWS Glue blueprint code and configuration.
-- **step-functions-workflow**: This folder contains the AWS Step Functions definition.
-- **artifacts**: This folder contains the artifacts used for the deployment.
+- [cloudformation-templates](cloudformation-templates/): This folder contains the AWS CloudFormation templates used in the blog.
+  - [database_stack.yml](cloudformation-templates/database_stack.yml): This CloudFormation stack works only in AWS Regions where Amazon Aurora Serverless v1 is supported. It is an optional step to create a database with sample data.
+  - [main_stack.yml](cloudformation-templates/main_stack.yml): This CloudFormation stack works in all AWS Regions, and it creates the AWS Glue blueprints and required resources.
+- [glue-blueprint](glue-blueprint/): This folder contains the AWS Glue blueprint code and configuration.
+- [step-functions-workflow](step-functions-workflow/): This folder contains the AWS Step Functions definition.
+- [artifacts](artifacts/): This folder contains the artifacts used for the deployment.
 
 ## Architecture Diagram
 
